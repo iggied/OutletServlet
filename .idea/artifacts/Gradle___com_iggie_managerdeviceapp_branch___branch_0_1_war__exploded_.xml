@@ -5,10 +5,10 @@
       <options external-project-path="$PROJECT_DIR$" />
     </properties>
     <root id="root">
-      <element id="javaee-facet-resources" facet="branch/web/Web Gradle : branch-0.1.war" />
+      <element id="javaee-facet-resources" facet="outlet/web/Web Gradle : outlet-0.1.war" />
       <element id="directory" name="WEB-INF">
         <element id="directory" name="classes">
-          <element id="module-output" name="branch" />
+          <element id="module-output" name="outlet" />
           <element id="dir-copy" path="$PROJECT_DIR$/build/resources/main" />
         </element>
         <element id="directory" name="lib">
