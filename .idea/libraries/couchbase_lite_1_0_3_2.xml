@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="couchbase-lite-1.0.3-2">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/couchbase-lite-android-1.0.3.1.jar!/" />
+      <root url="file://$PROJECT_DIR$/lib/couchbase-lite-1.0.3-2.1" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/lib/couchbase-lite-1.0.3-2.1" />
+    </SOURCES>
+    <jarDirectory url="file://$PROJECT_DIR$/lib/couchbase-lite-1.0.3-2.1" recursive="false" />
+    <jarDirectory url="file://$PROJECT_DIR$/lib/couchbase-lite-1.0.3-2.1" recursive="false" type="SOURCES" />
+  </library>
+</component>

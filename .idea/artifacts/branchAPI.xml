@@ -1,0 +1,6 @@
+<component name="ArtifactManager">
+  <artifact type="war" name="branchAPI">
+    <output-path>$PROJECT_DIR$/out/artifacts/branchAPI</output-path>
+    <root id="archive" name="branchAPI.war" />
+  </artifact>
+</component>

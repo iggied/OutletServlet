@@ -1,0 +1,21 @@
+repositories {
+    mavenCentral()
+}
+
+
+       List<Object> staffKey = new ArrayList();
+        staffKey.add("admin");
+        Query query = database.getView("staff").createQuery();
+        query.setKeys(staffKey);
+
+        QueryEnumerator result = null;
+        try {
+            result = query.run();
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Cannot run query", e);
+        }
+
+        for (Iterator<QueryRow> it = result; it.hasNext(); ) {
+            QueryRow row = it.next();
+            Log.w("MYAPP", "Widget named %s costs $%f", row.getKey(), ((Double)row.getValue()).doubleValue());
+        }
