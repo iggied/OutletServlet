@@ -75,12 +75,12 @@ public class OutletServlet extends HttpServlet
             Log.e(TAG, "Cannot write document to database", e);
         }
 
-        View phoneView = database.getView("staff");
-        phoneView.setMap(new Mapper() {
+        View staffView = database.getView("staff");
+        staffView.setMap(new Mapper() {
             @Override
             public void map(Map<String, Object> document, Emitter emitter) {
                 if (document.get("type").equals("staff") ) {
-                    emitter.emit(document.get("staffId"), document.get("staffPin"));
+                    emitter.emit(document.get("outletId"), document.get("data"));
                 }
             }
         }, "2");

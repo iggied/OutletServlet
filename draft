@@ -19,3 +19,46 @@ repositories {
             QueryRow row = it.next();
             Log.w("MYAPP", "Widget named %s costs $%f", row.getKey(), ((Double)row.getValue()).doubleValue());
         }
+
+
+
+
+
+ObjectMapper m = new ObjectMapper();
+Map<String,Object> props = m.convertValue(myBean, Map.class);
+MyBean anotherBean = m.convertValue(props, MyBean.class);
+
+
+
+
+        // Temporary data creation for testing
+        // Create a view and register its map function:
+
+        SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        Calendar calendar = GregorianCalendar.getInstance();
+        String currentTimeString = dateFormatter.format(calendar.getTime());
+
+        Map<String, Object> properties = new HashMap<String, Object>();
+        properties.put("type", "staff");
+        properties.put("staffId", "admin");
+        properties.put("created_at", currentTimeString);
+        properties.put("staffPin", "nimda");
+        Document document = database.getDocument("admin");
+        try {
+            document.putProperties(properties);
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Cannot write document to database", e);
+        }
+
+        View phoneView = database.getView("staff");
+        phoneView.setMap(new Mapper() {
+            @Override
+            public void map(Map<String, Object> document, Emitter emitter) {
+                if (document.get("type").equals("staff") ) {
+                    emitter.emit(document.get("staffId"), document.get("staffPin"));
+                }
+            }
+        }, "2");
+
+        // Temporary till here
+

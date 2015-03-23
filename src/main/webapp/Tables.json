@@ -1,0 +1,68 @@
+[
+  {
+    "type": "table",
+    "outletId" : "1",
+    "createdBy": "system",
+    "createdOn": "31/12/1999",
+    "data" :
+    [
+      {
+        "name": "Ground floor",
+        "tables":
+        [
+          {
+            "tableNumber": "Table-1", "tableXpos": "50px", "tableYpos": "10px"
+          },
+          {
+            "tableNumber": "Table-2", "tableXpos": "50px", "tableYpos": "210px"
+          },
+          {
+            "tableNumber": "Table-3", "tableXpos": "50px", "tableYpos": "410px"
+          },
+          {
+            "tableNumber": "Table-4", "tableXpos": "50px", "tableYpos": "610px"
+          },
+          {
+            "tableNumber": "Table-5", "tableXpos": "50px", "tableYpos": "810px"
+          },
+          {
+            "tableNumber": "Table-6", "tableXpos": "250px", "tableYpos": "10px"
+          },
+          {
+            "tableNumber": "Table-7", "tableXpos": "250px", "tableYpos": "210px"
+          },
+          {
+            "tableNumber": "Table-8", "tableXpos": "250px", "tableYpos": "410px"
+          },
+          {
+            "tableNumber": "Table-9", "tableXpos": "250px", "tableYpos": "610px"
+          },
+          {
+            "tableNumber": "Table-10", "tableXpos": "250px", "tableYpos": "810px"
+          }
+        ]
+      }
+    ,
+      {
+        "name": "First floor",
+        "tables": [
+          {
+            "tableNumber": "Table-11", "tableXpos": "50px", "tableYpos": "10px"
+          },
+          {
+            "tableNumber": "Table-12", "tableXpos": "50px", "tableYpos": "210px"
+          },
+          {
+            "tableNumber": "Table-13", "tableXpos": "50px", "tableYpos": "410px"
+          },
+          {
+            "tableNumber": "Table-14", "tableXpos": "50px", "tableYpos": "610px"
+          },
+          {
+            "tableNumber": "Table-15", "tableXpos": "50px", "tableYpos": "810px"
+          }
+        ]
+      }
+    ]
+  }
+]

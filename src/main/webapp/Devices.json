@@ -1,0 +1,27 @@
+[
+  {
+    "type": "device",
+    "outletId": "1",
+    "data":
+    [
+      {
+        "id": "0", "type": "manager"
+      },
+      {
+        "id": "1", "type": "customer"
+      },
+      {
+        "id": "2", "type": "customer"
+      },
+      {
+        "id": "3", "type": "customer"
+      },
+      {
+        "id": "4", "type": "customer"
+      },
+      {
+        "id": "5", "type": "customer"
+      }
+    ]
+  }
+]

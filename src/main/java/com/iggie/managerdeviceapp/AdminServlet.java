@@ -5,6 +5,7 @@ import com.couchbase.lite.*;
 import com.couchbase.lite.android.AndroidContext;
 import com.couchbase.lite.util.Log;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -12,13 +13,12 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
-
 
 public class AdminServlet extends HttpServlet
 {
@@ -46,9 +46,9 @@ public class AdminServlet extends HttpServlet
         }
 
         // create a new database
-        String dbname = "branchcdb";
+        String dbName = getServletContext().getInitParameter("outletdbname");
         try {
-            database = manager.getDatabase(dbname);
+            database = manager.getDatabase(dbName);
             Log.d (TAG, "Database created");
 
         } catch (CouchbaseLiteException e) {
@@ -56,39 +56,24 @@ public class AdminServlet extends HttpServlet
             return;
         }
 
-        // Temporary data creation for testing
-        // Create a view and register its map function:
-
-        SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-        Calendar calendar = GregorianCalendar.getInstance();
-        String currentTimeString = dateFormatter.format(calendar.getTime());
-
-        Map<String, Object> properties = new HashMap<String, Object>();
-        properties.put("type", "staff");
-        properties.put("staffId", "admin");
-        properties.put("created_at", currentTimeString);
-        properties.put("staffPin", "nimda");
-        Document document = database.getDocument("admin");
-        try {
-            document.putProperties(properties);
-        } catch (CouchbaseLiteException e) {
-            Log.e(TAG, "Cannot write document to database", e);
-        }
-
-        View phoneView = database.getView("staff");
-        phoneView.setMap(new Mapper() {
+        View staffView = database.getView("outletstaff");
+        staffView.setMap(new Mapper() {
             @Override
             public void map(Map<String, Object> document, Emitter emitter) {
                 if (document.get("type").equals("staff") ) {
-                    emitter.emit(document.get("staffId"), document.get("staffPin"));
+
+                    List staffList = (List) document.get("data");
+                    Map<String, Object> staff;
+                    for( ListIterator<Map<String, Object>> li = staffList.listIterator(); li.hasNext(); ) {
+                        staff = li.next();
+                        emitter.emit(document.get("outletId")+":"+staff.get("id"), staff);
+                    }
+
                 }
             }
-        }, "2");
-
-        // Temporary till here
+        }, "10");
 
         Log.d(TAG, "Servlet init completed");
-
 
     }
 
@@ -127,61 +112,91 @@ public class AdminServlet extends HttpServlet
         response.setContentType("application/json");
 
         switch (action) {
-            case "VALIDATECREDS": {
-                String staffId = parameterMap != null ? parameterMap.get("staffId")[0] : "" ;
-                String staffPin = parameterMap != null ? parameterMap.get("staffPin")[0] : "" ;
-
-                validateCredsResponse(writer, staffId, staffPin);
+            case "SYNCOUTLETDB": {
+                syncOutletDB();
+                writer.println("{\"status\": \"OK\"}" );
+                break;
+            }
+            case "PURGEOUTLETDB": {
+                purgeOutletDB();
+                writer.println("{\"status\": \"OK\"}" );
+                break;
+            }
+            case "DUMPSTAFF": {
+                dumpStaff(writer);
+                break;
             }
         }
 
     }
 
-
-
-    private void validateCredsResponse(PrintWriter out, String staffId, String staffPin)
-    {
-
-
-        Log.i(TAG, "post staffId=" + staffId);
-        Log.i(TAG, "post staffPin=" + staffPin);
-
-
-        Document document = database.getExistingDocument(staffId);
-
-        if (document != null) {
-            Log.i(TAG, "document staffId=" + document.getProperty("staffId"));
-            Log.i(TAG, "document staffPin=" + document.getProperty("staffPin"));
-        }
-
-
-        class MyValue {
-            public String valid;
-
-            public MyValue( String value ){
-                this.valid = value;
-            }
-        }
-
-        MyValue value = new MyValue("1");
+    public void syncOutletDB() throws IOException {
 
         ObjectMapper mapper = new ObjectMapper();
+        InputStreamReader isr = null;
+        Map<String, Object> staff = null;
         try {
-            String jsonString = mapper.writeValueAsString(value);
-            Log.i(TAG, jsonString);
+            isr = new InputStreamReader(getServletContext().getResourceAsStream("/Staff.json"));
+            staff = mapper.readValue(isr, new TypeReference<Map<String, Object>>() {});
         } catch (IOException e) {
-            Log.e(TAG, "error in JSON serializing");
+            Log.e(TAG, "Cannot read/parse Staff.json", e);
+        } finally {
+            if (isr != null) {
+                isr.close();
+            }
         }
 
-
-        out.println("{");
-        if (document != null && document.getProperty("staffPin").equals(staffPin)) {
-            out.println("\"valid\": \"1\"");
-        } else {
-            out.println("\"valid\": \"0\"");
+        //Map<String,Object> props = mapper.convertValue(staff, Map.class);
+        Document document = database.getDocument("staff"+staff.get("outletId"));
+        try {
+            document.putProperties(staff);
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Cannot write document to database", e);
         }
-        out.println("}");
+
+        Map<String, Object> doc = document.getProperties();
+        Log.i(TAG, "document.data=" + doc.get("data"));
+    }
+
+
+    public void purgeOutletDB() {
+
+        Query query = database.createAllDocumentsQuery();
+        query.setIndexUpdateMode(Query.IndexUpdateMode.NEVER);
+        query.setAllDocsMode(Query.AllDocsMode.ALL_DOCS);
+        QueryEnumerator result = null;
+        try {
+            result = query.run();
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Error running query", e);
+        }
+        for (Iterator<QueryRow> it = result; it.hasNext(); ) {
+            QueryRow row = it.next();
+            try {
+                row.getDocument().purge();
+                Log.i(TAG, "Purged document : %s", row.getDocumentId());
+            } catch (CouchbaseLiteException e) {
+                Log.e(TAG, "Error purging document", e);
+            }
+        }
+
 
     }
 
+
+    public void dumpStaff( PrintWriter writer ) {
+
+        Query query = database.getView("outletstaff").createQuery();
+        QueryEnumerator result = null;
+        try {
+            result = query.run();
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Error running query", e);
+        }
+        for (Iterator<QueryRow> it = result; it.hasNext(); ) {
+            QueryRow row = it.next();
+            writer.println(row.getValue());
+            Log.i(TAG, "Data %s : %s ", row.getKey(), row.getValue());
+        }
+    }
 }

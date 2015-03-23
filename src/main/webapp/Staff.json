@@ -1,0 +1,36 @@
+
+  {
+    "type": "staff",
+    "outletId": "1",
+    "createdBy": "system",
+    "createdOn": "31/12/1999",
+    "data":
+    [
+      {
+        "id": "iggie",
+        "name": "ignatius",
+        "pin": "12345"
+      },
+      {
+        "id": "s1",
+        "name": "Staff one",
+        "pin": "11111"
+      },
+      {
+        "id": "s2",
+        "name": "staff two",
+        "pin": "22222"
+      },
+      {
+        "id": "s3",
+        "name": "staff three",
+        "pin": "33333"
+      },
+      {
+        "id": "s4",
+        "name": "staff four",
+        "pin": "44444"
+      }
+    ]
+  }
+

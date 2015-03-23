@@ -12,13 +12,27 @@
 		<servlet-name>OutletServlet</servlet-name>
 		<servlet-class>com.iggie.managerdeviceapp.OutletServlet</servlet-class>
 	</servlet>
+    <servlet>
+        <servlet-name>AdminServlet</servlet-name>
+        <servlet-class>com.iggie.managerdeviceapp.AdminServlet</servlet-class>
+    </servlet>
 
 	<servlet-mapping>
 		<servlet-name>OutletServlet</servlet-name>
 		<url-pattern>/serve/*</url-pattern>
 	</servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminServlet</servlet-name>
+        <url-pattern>/admin/*</url-pattern>
+    </servlet-mapping>
 
-  <session-config>
-    <session-timeout>0</session-timeout>
-  </session-config>
+    <context-param>
+        <description>Outlet DB name</description>
+        <param-name>outletdbname</param-name>
+        <param-value>outletdb</param-value>
+    </context-param>
+
+    <session-config>
+        <session-timeout>5000</session-timeout>
+    </session-config>
 </web-app>
