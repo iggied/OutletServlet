@@ -15,6 +15,7 @@
     <servlet>
         <servlet-name>AdminServlet</servlet-name>
         <servlet-class>com.iggie.managerdeviceapp.AdminServlet</servlet-class>
+        <load-on-startup>0</load-on-startup>
     </servlet>
 
 	<servlet-mapping>
@@ -30,6 +31,11 @@
         <description>Outlet DB name</description>
         <param-name>outletdbname</param-name>
         <param-value>outletdb</param-value>
+    </context-param>
+    <context-param>
+        <description>Outlet Id</description>
+        <param-name>outletId</param-name>
+        <param-value>1</param-value>
     </context-param>
 
     <session-config>

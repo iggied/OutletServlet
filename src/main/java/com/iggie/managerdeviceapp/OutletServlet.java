@@ -1,8 +1,6 @@
 package com.iggie.managerdeviceapp;
 
-import android.content.ContentResolver;
 import com.couchbase.lite.*;
-import com.couchbase.lite.android.AndroidContext;
 import com.couchbase.lite.util.Log;
 import org.codehaus.jackson.map.ObjectMapper;
 
@@ -13,9 +11,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,79 +21,19 @@ public class OutletServlet extends HttpServlet
 {
     final String TAG = this.getClass().getName();
 
-    private ContentResolver resolver;
     private android.content.Context androidContext;
-    private Manager manager;
     private Database database;
+    private String outletId;
 
     @Override
     public void init(ServletConfig config) throws ServletException
     {
         super.init(config);
-        resolver = (ContentResolver)getServletContext().getAttribute("org.mortbay.ijetty.contentResolver");
         androidContext = (android.content.Context)config.getServletContext().getAttribute("org.mortbay.ijetty.context");
-
-        // create a manager
-        try {
-            manager = new Manager(new AndroidContext(androidContext), Manager.DEFAULT_OPTIONS);
-            Log.d (TAG, "Manager created");
-        } catch (IOException e) {
-            Log.e(TAG, "Cannot create manager object");
-            return;
-        }
-
-        // create a new database
-        String dbname = "branchcdb";
-        try {
-            database = manager.getDatabase(dbname);
-            Log.d (TAG, "Database created");
-
-        } catch (CouchbaseLiteException e) {
-            Log.e(TAG, "Cannot get database");
-            return;
-        }
-
-        // Temporary data creation for testing
-        // Create a view and register its map function:
-
-        SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-        Calendar calendar = GregorianCalendar.getInstance();
-        String currentTimeString = dateFormatter.format(calendar.getTime());
-
-        Map<String, Object> properties = new HashMap<String, Object>();
-        properties.put("type", "staff");
-        properties.put("staffId", "admin");
-        properties.put("created_at", currentTimeString);
-        properties.put("staffPin", "nimda");
-        Document document = database.getDocument("admin");
-        try {
-            document.putProperties(properties);
-        } catch (CouchbaseLiteException e) {
-            Log.e(TAG, "Cannot write document to database", e);
-        }
-
-        View staffView = database.getView("staff");
-        staffView.setMap(new Mapper() {
-            @Override
-            public void map(Map<String, Object> document, Emitter emitter) {
-                if (document.get("type").equals("staff") ) {
-                    emitter.emit(document.get("outletId"), document.get("data"));
-                }
-            }
-        }, "2");
-
-        // Temporary till here
-
+        database = (Database) getServletContext().getAttribute("database");
+        outletId = getServletContext().getInitParameter("outletId");
         Log.d(TAG, "Servlet init completed");
-
-
     }
-
-    public ContentResolver getContentResolver()
-    {
-        return resolver;
-    }
-
 
     @Override
     public void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException
@@ -139,49 +76,36 @@ public class OutletServlet extends HttpServlet
 
 
 
-    private void validateCredsResponse(PrintWriter out, String staffId, String staffPin)
-    {
+    private void validateCredsResponse(PrintWriter out, String staffId, String staffPin) throws IOException {
+        Map<String, String> replyMap = new HashMap<>();
+        replyMap.put("valid", "0");
 
 
-        Log.i(TAG, "post staffId=" + staffId);
-        Log.i(TAG, "post staffPin=" + staffPin);
 
+        ArrayList keyArray = new ArrayList();
+        keyArray.add(outletId);
+        keyArray.add(staffId);
 
-        Document document = database.getExistingDocument(staffId);
-
-        if (document != null) {
-            Log.i(TAG, "document staffId=" + document.getProperty("staffId"));
-            Log.i(TAG, "document staffPin=" + document.getProperty("staffPin"));
+        Query query = database.getView("outletstaff").createQuery();
+        query.setStartKey(Arrays.asList(outletId, staffId) );
+        query.setEndKey(Arrays.asList(outletId, staffId));
+        QueryEnumerator result = null;
+        try {
+            result = query.run();
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Error running query", e);
         }
 
-
-        class MyValue {
-            public String valid;
-
-            public MyValue( String value ){
-                this.valid = value;
+        if (result.hasNext()) {
+            Map<String, Object> staffMap = (Map) result.next().getValue();
+            Log.i(TAG, "document pin=" + staffMap.get("pin"));
+            if (staffMap.get("pin").equals(staffPin)) {
+                replyMap.put("valid", "1");
             }
         }
 
-        MyValue value = new MyValue("1");
-
         ObjectMapper mapper = new ObjectMapper();
-        try {
-            String jsonString = mapper.writeValueAsString(value);
-            Log.i(TAG, jsonString);
-        } catch (IOException e) {
-            Log.e(TAG, "error in JSON serializing");
-        }
-
-
-        out.println("{");
-        if (document != null && document.getProperty("staffPin").equals(staffPin)) {
-            out.println("\"valid\": \"1\"");
-        } else {
-            out.println("\"valid\": \"0\"");
-        }
-        out.println("}");
-
+        out.println( mapper.writeValueAsString(replyMap));
     }
 
 }

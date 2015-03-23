@@ -1,6 +1,5 @@
 package com.iggie.managerdeviceapp;
 
-import android.content.ContentResolver;
 import com.couchbase.lite.*;
 import com.couchbase.lite.android.AndroidContext;
 import com.couchbase.lite.util.Log;
@@ -15,26 +14,25 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
+import java.util.*;
 
 public class AdminServlet extends HttpServlet
 {
     final String TAG = this.getClass().getName();
 
-    private ContentResolver resolver;
+//    private ContentResolver resolver;
     private android.content.Context androidContext;
     private Manager manager;
     private Database database;
+    private String outletId;
 
     @Override
     public void init(ServletConfig config) throws ServletException
     {
         super.init(config);
-        resolver = (ContentResolver)getServletContext().getAttribute("org.mortbay.ijetty.contentResolver");
+//        resolver = (ContentResolver)getServletContext().getAttribute("org.mortbay.ijetty.contentResolver");
         androidContext = (android.content.Context)config.getServletContext().getAttribute("org.mortbay.ijetty.context");
+        outletId = getServletContext().getInitParameter("outletId");
 
         // create a manager
         try {
@@ -56,31 +54,37 @@ public class AdminServlet extends HttpServlet
             return;
         }
 
+        getServletContext().setAttribute("database", database );
+
         View staffView = database.getView("outletstaff");
         staffView.setMap(new Mapper() {
             @Override
             public void map(Map<String, Object> document, Emitter emitter) {
+
                 if (document.get("type").equals("staff") ) {
 
                     List staffList = (List) document.get("data");
                     Map<String, Object> staff;
                     for( ListIterator<Map<String, Object>> li = staffList.listIterator(); li.hasNext(); ) {
                         staff = li.next();
-                        emitter.emit(document.get("outletId")+":"+staff.get("id"), staff);
+                        emitter.emit(Arrays.asList(document.get("outletId"), staff.get("id")), staff);
                     }
-
                 }
             }
-        }, "10");
+        }, "12");
+
+        com.couchbase.lite.util.Log.enableLogging(Log.TAG_VIEW, Log.VERBOSE);
+        com.couchbase.lite.util.Log.enableLogging(Log.TAG_QUERY, Log.VERBOSE);
+        com.couchbase.lite.util.Log.enableLogging(Log.TAG_DATABASE, Log.VERBOSE);
 
         Log.d(TAG, "Servlet init completed");
 
     }
 
-    public ContentResolver getContentResolver()
+/*    public ContentResolver getContentResolver()
     {
         return resolver;
-    }
+    }*/
 
 
     @Override
@@ -146,7 +150,6 @@ public class AdminServlet extends HttpServlet
             }
         }
 
-        //Map<String,Object> props = mapper.convertValue(staff, Map.class);
         Document document = database.getDocument("staff"+staff.get("outletId"));
         try {
             document.putProperties(staff);

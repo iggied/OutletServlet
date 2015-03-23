@@ -7,6 +7,7 @@
     "data" :
     [
       {
+        "level" : "GF",
         "name": "Ground floor",
         "tables":
         [
@@ -44,6 +45,7 @@
       }
     ,
       {
+        "level": "FF",
         "name": "First floor",
         "tables": [
           {
