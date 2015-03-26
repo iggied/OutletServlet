@@ -17,14 +17,22 @@
         <servlet-class>com.iggie.managerdeviceapp.AdminServlet</servlet-class>
         <load-on-startup>0</load-on-startup>
     </servlet>
+    <servlet>
+        <servlet-name>DatabaseServlet</servlet-name>
+        <servlet-class>com.iggie.managerdeviceapp.DatabaseServlet</servlet-class>
+    </servlet>
 
-	<servlet-mapping>
+    <servlet-mapping>
 		<servlet-name>OutletServlet</servlet-name>
 		<url-pattern>/serve/*</url-pattern>
 	</servlet-mapping>
     <servlet-mapping>
         <servlet-name>AdminServlet</servlet-name>
         <url-pattern>/admin/*</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DatabaseServlet</servlet-name>
+        <url-pattern>/db/*</url-pattern>
     </servlet-mapping>
 
     <context-param>

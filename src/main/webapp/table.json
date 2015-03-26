@@ -1,4 +1,4 @@
-[
+
   {
     "type": "table",
     "outletId" : "1",
@@ -7,7 +7,7 @@
     "data" :
     [
       {
-        "level" : "GF",
+        "id" : "GF",
         "name": "Ground floor",
         "tables":
         [
@@ -45,26 +45,26 @@
       }
     ,
       {
-        "level": "FF",
+        "id": "FF",
         "name": "First floor",
         "tables": [
           {
-            "tableNumber": "Table-11", "tableXpos": "50px", "tableYpos": "10px"
+            "tableNumber": "Table-11", "tableXpos": "450px", "tableYpos": "10px"
           },
           {
-            "tableNumber": "Table-12", "tableXpos": "50px", "tableYpos": "210px"
+            "tableNumber": "Table-12", "tableXpos": "450px", "tableYpos": "210px"
           },
           {
-            "tableNumber": "Table-13", "tableXpos": "50px", "tableYpos": "410px"
+            "tableNumber": "Table-13", "tableXpos": "450px", "tableYpos": "410px"
           },
           {
-            "tableNumber": "Table-14", "tableXpos": "50px", "tableYpos": "610px"
+            "tableNumber": "Table-14", "tableXpos": "450px", "tableYpos": "610px"
           },
           {
-            "tableNumber": "Table-15", "tableXpos": "50px", "tableYpos": "810px"
+            "tableNumber": "Table-15", "tableXpos": "450px", "tableYpos": "810px"
           }
         ]
       }
     ]
   }
-]
+

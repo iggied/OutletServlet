@@ -69,6 +69,10 @@ public class OutletServlet extends HttpServlet
                 String staffPin = parameterMap != null ? parameterMap.get("staffPin")[0] : "" ;
 
                 validateCredsResponse(writer, staffId, staffPin);
+                break;
+            }
+            case "GETTABLES": {
+                getTablesResponse(writer);
             }
         }
 
@@ -80,13 +84,11 @@ public class OutletServlet extends HttpServlet
         Map<String, String> replyMap = new HashMap<>();
         replyMap.put("valid", "0");
 
-
-
         ArrayList keyArray = new ArrayList();
         keyArray.add(outletId);
         keyArray.add(staffId);
 
-        Query query = database.getView("outletstaff").createQuery();
+        Query query = database.getView("staffview").createQuery();
         query.setStartKey(Arrays.asList(outletId, staffId) );
         query.setEndKey(Arrays.asList(outletId, staffId));
         QueryEnumerator result = null;
@@ -107,5 +109,28 @@ public class OutletServlet extends HttpServlet
         ObjectMapper mapper = new ObjectMapper();
         out.println( mapper.writeValueAsString(replyMap));
     }
+
+    private void getTablesResponse(PrintWriter out) throws IOException {
+
+        Query query = database.getView("tableview").createQuery();
+        query.setStartKey(Arrays.asList(outletId) );
+        query.setEndKey(Arrays.asList(outletId, "ZZ"));
+        QueryEnumerator result = null;
+        try {
+            result = query.run();
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Error running query", e);
+        }
+
+        if (result.hasNext()) {
+            //Map<String, Object> resultMap = (Map) result.next().getValue();
+            Document doc = result.next().getDocument();
+            ObjectMapper mapper = new ObjectMapper();
+            out.println( mapper.writeValueAsString(doc.getProperty("data")));
+            Log.i(TAG, "document id=" + doc.getId() + " outletid=" + doc.getProperty("outletId"));
+        }
+
+    }
+
 
 }

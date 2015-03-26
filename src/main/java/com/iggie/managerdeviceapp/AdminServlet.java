@@ -56,22 +56,69 @@ public class AdminServlet extends HttpServlet
 
         getServletContext().setAttribute("database", database );
 
-        View staffView = database.getView("outletstaff");
-        staffView.setMap(new Mapper() {
+        database.getView("staffview").setMap(new Mapper() {
             @Override
             public void map(Map<String, Object> document, Emitter emitter) {
 
-                if (document.get("type").equals("staff") ) {
+                if (document.get("type").equals("staff")) {
+                    List dataList = (List) document.get("data");
 
-                    List staffList = (List) document.get("data");
-                    Map<String, Object> staff;
-                    for( ListIterator<Map<String, Object>> li = staffList.listIterator(); li.hasNext(); ) {
-                        staff = li.next();
-                        emitter.emit(Arrays.asList(document.get("outletId"), staff.get("id")), staff);
+                    Map<String, Object> dataMap;
+                    for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
+                        dataMap = li.next();
+                        emitter.emit(Arrays.asList(document.get("outletId"), dataMap.get("id")), dataMap);
                     }
                 }
             }
-        }, "12");
+        }, "1");
+
+        database.getView("deviceview").setMap(new Mapper() {
+            @Override
+            public void map(Map<String, Object> document, Emitter emitter) {
+
+                if (document.get("type").equals("device")) {
+                    List dataList = (List) document.get("data");
+
+                    Map<String, Object> dataMap;
+                    for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
+                        dataMap = li.next();
+                        emitter.emit(Arrays.asList(document.get("outletId"), dataMap.get("id")), dataMap);
+                    }
+                }
+            }
+        }, "1");
+
+        database.getView("tableview").setMap(new Mapper() {
+            @Override
+            public void map(Map<String, Object> document, Emitter emitter) {
+
+                if (document.get("type").equals("table")) {
+                    List dataList = (List) document.get("data");
+
+                    Map<String, Object> dataMap;
+                    for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
+                        dataMap = li.next();
+                        emitter.emit(Arrays.asList(document.get("outletId"), dataMap.get("id")), dataMap);
+                    }
+                }
+            }
+        }, "1");
+
+        database.getView("menuview").setMap(new Mapper() {
+            @Override
+            public void map(Map<String, Object> document, Emitter emitter) {
+
+                if (document.get("type").equals("menu")) {
+                    List dataList = (List) document.get("data");
+
+                    Map<String, Object> dataMap;
+                    for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
+                        dataMap = li.next();
+                        emitter.emit(Arrays.asList(document.get("outletId"), dataMap.get("itemId")), dataMap);
+                    }
+                }
+            }
+        }, "1");
 
         com.couchbase.lite.util.Log.enableLogging(Log.TAG_VIEW, Log.VERBOSE);
         com.couchbase.lite.util.Log.enableLogging(Log.TAG_QUERY, Log.VERBOSE);
@@ -80,12 +127,6 @@ public class AdminServlet extends HttpServlet
         Log.d(TAG, "Servlet init completed");
 
     }
-
-/*    public ContentResolver getContentResolver()
-    {
-        return resolver;
-    }*/
-
 
     @Override
     public void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException
@@ -101,13 +142,11 @@ public class AdminServlet extends HttpServlet
         PrintWriter writer = response.getWriter();
         doJSON(writer, request, response);
         writer.flush();
-
     }
 
 
     protected void doJSON (PrintWriter writer, HttpServletRequest request,
                            HttpServletResponse response) throws IOException {
-
 
         Map<String,String[]> parameterMap = (Map<String, String[]>) request.getParameterMap();
 
@@ -116,8 +155,8 @@ public class AdminServlet extends HttpServlet
         response.setContentType("application/json");
 
         switch (action) {
-            case "SYNCOUTLETDB": {
-                syncOutletDB();
+            case "LOADOUTLETDB": {
+                loadOutletDB();
                 writer.println("{\"status\": \"OK\"}" );
                 break;
             }
@@ -134,25 +173,33 @@ public class AdminServlet extends HttpServlet
 
     }
 
-    public void syncOutletDB() throws IOException {
+    public void loadOutletDB() throws IOException {
+
+        loadJsonFile("device");
+        loadJsonFile("staff");
+        loadJsonFile("table");
+        loadJsonFile("menu");
+    }
+
+    private void loadJsonFile(String type)  throws IOException {
 
         ObjectMapper mapper = new ObjectMapper();
         InputStreamReader isr = null;
-        Map<String, Object> staff = null;
+        Map<String, Object> jsonMap = null;
         try {
-            isr = new InputStreamReader(getServletContext().getResourceAsStream("/Staff.json"));
-            staff = mapper.readValue(isr, new TypeReference<Map<String, Object>>() {});
+            isr = new InputStreamReader(getServletContext().getResourceAsStream("/"+type+".json"));
+            jsonMap = mapper.readValue(isr, new TypeReference<Map<String, Object>>() {});
         } catch (IOException e) {
-            Log.e(TAG, "Cannot read/parse Staff.json", e);
+            Log.e(TAG, "Cannot read/parse " + type + ".json" , e);
         } finally {
             if (isr != null) {
                 isr.close();
             }
         }
 
-        Document document = database.getDocument("staff"+staff.get("outletId"));
+        Document document = database.getDocument(type+jsonMap.get("outletId"));
         try {
-            document.putProperties(staff);
+            document.putProperties(jsonMap);
         } catch (CouchbaseLiteException e) {
             Log.e(TAG, "Cannot write document to database", e);
         }
@@ -182,14 +229,12 @@ public class AdminServlet extends HttpServlet
                 Log.e(TAG, "Error purging document", e);
             }
         }
-
-
     }
 
 
     public void dumpStaff( PrintWriter writer ) {
 
-        Query query = database.getView("outletstaff").createQuery();
+        Query query = database.getView("staffview").createQuery();
         QueryEnumerator result = null;
         try {
             result = query.run();
@@ -199,7 +244,7 @@ public class AdminServlet extends HttpServlet
         for (Iterator<QueryRow> it = result; it.hasNext(); ) {
             QueryRow row = it.next();
             writer.println(row.getValue());
-            Log.i(TAG, "Data %s : %s ", row.getKey(), row.getValue());
+            Log.i(TAG, "Data %s | %s ", row.getKey(), row.getValue());
         }
     }
 }

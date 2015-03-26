@@ -30,10 +30,11 @@ repositories {
 
 
 dependencies {
-    compile group: 'org.eclipse.jetty', name: 'jetty-util', version:'7.6.0.RC4'
-    compile group: 'org.eclipse.jetty', name: 'jetty-servlets', version:'7.6.0.RC4'
-    compile(name:'couchbase-lite-android-1.0.3.1', ext:'jar')
-    compile group: 'com.couchbase.lite', name: 'couchbase-lite-android', version:'1.0.3.1'
+    providedCompile group: 'org.eclipse.jetty', name: 'jetty-util', version:'7.6.0.RC4'
+    providedCompile group: 'org.eclipse.jetty', name: 'jetty-servlets', version:'7.6.0.RC4'
+    providedCompile(name:'couchbase-lite-android-1.0.3.1', ext:'jar')
+    providedCompile group: 'com.couchbase.lite', name: 'couchbase-lite-android', version:'1.0.3.1'
+    providedCompile(name:'couchbase-lite-java-listener-1.0.3.1', ext:'jar')
     providedCompile group: 'com.google.android', name: 'android', version:'1.6_r2'
     providedCompile group: 'org.mortbay.jetty', name: 'servlet-api', version:'2.5-20081211'
 
