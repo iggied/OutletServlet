@@ -1,7 +1,6 @@
 package com.iggie.managerdeviceapp;
 
 import com.couchbase.lite.*;
-import com.couchbase.lite.android.AndroidContext;
 import com.couchbase.lite.util.Log;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
@@ -22,7 +21,6 @@ public class AdminServlet extends HttpServlet
 
 //    private ContentResolver resolver;
     private android.content.Context androidContext;
-    private Manager manager;
     private Database database;
     private String outletId;
 
@@ -30,99 +28,10 @@ public class AdminServlet extends HttpServlet
     public void init(ServletConfig config) throws ServletException
     {
         super.init(config);
-//        resolver = (ContentResolver)getServletContext().getAttribute("org.mortbay.ijetty.contentResolver");
         androidContext = (android.content.Context)config.getServletContext().getAttribute("org.mortbay.ijetty.context");
         outletId = getServletContext().getInitParameter("outletId");
 
-        // create a manager
-        try {
-            manager = new Manager(new AndroidContext(androidContext), Manager.DEFAULT_OPTIONS);
-            Log.d (TAG, "Manager created");
-        } catch (IOException e) {
-            Log.e(TAG, "Cannot create manager object");
-            return;
-        }
-
-        // create a new database
-        String dbName = getServletContext().getInitParameter("outletdbname");
-        try {
-            database = manager.getDatabase(dbName);
-            Log.d (TAG, "Database created");
-
-        } catch (CouchbaseLiteException e) {
-            Log.e(TAG, "Cannot get database");
-            return;
-        }
-
-        getServletContext().setAttribute("database", database );
-
-        database.getView("staffview").setMap(new Mapper() {
-            @Override
-            public void map(Map<String, Object> document, Emitter emitter) {
-
-                if (document.get("type").equals("staff")) {
-                    List dataList = (List) document.get("data");
-
-                    Map<String, Object> dataMap;
-                    for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
-                        dataMap = li.next();
-                        emitter.emit(Arrays.asList(document.get("outletId"), dataMap.get("id")), dataMap);
-                    }
-                }
-            }
-        }, "1");
-
-        database.getView("deviceview").setMap(new Mapper() {
-            @Override
-            public void map(Map<String, Object> document, Emitter emitter) {
-
-                if (document.get("type").equals("device")) {
-                    List dataList = (List) document.get("data");
-
-                    Map<String, Object> dataMap;
-                    for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
-                        dataMap = li.next();
-                        emitter.emit(Arrays.asList(document.get("outletId"), dataMap.get("id")), dataMap);
-                    }
-                }
-            }
-        }, "1");
-
-        database.getView("tableview").setMap(new Mapper() {
-            @Override
-            public void map(Map<String, Object> document, Emitter emitter) {
-
-                if (document.get("type").equals("table")) {
-                    List dataList = (List) document.get("data");
-
-                    Map<String, Object> dataMap;
-                    for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
-                        dataMap = li.next();
-                        emitter.emit(Arrays.asList(document.get("outletId"), dataMap.get("id")), dataMap);
-                    }
-                }
-            }
-        }, "1");
-
-        database.getView("menuview").setMap(new Mapper() {
-            @Override
-            public void map(Map<String, Object> document, Emitter emitter) {
-
-                if (document.get("type").equals("menu")) {
-                    List dataList = (List) document.get("data");
-
-                    Map<String, Object> dataMap;
-                    for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
-                        dataMap = li.next();
-                        emitter.emit(Arrays.asList(document.get("outletId"), dataMap.get("itemId")), dataMap);
-                    }
-                }
-            }
-        }, "1");
-
-        com.couchbase.lite.util.Log.enableLogging(Log.TAG_VIEW, Log.VERBOSE);
-        com.couchbase.lite.util.Log.enableLogging(Log.TAG_QUERY, Log.VERBOSE);
-        com.couchbase.lite.util.Log.enableLogging(Log.TAG_DATABASE, Log.VERBOSE);
+        database = (Database) getServletContext().getAttribute("database");
 
         Log.d(TAG, "Servlet init completed");
 

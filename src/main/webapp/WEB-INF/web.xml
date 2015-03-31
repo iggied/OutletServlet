@@ -15,11 +15,11 @@
     <servlet>
         <servlet-name>AdminServlet</servlet-name>
         <servlet-class>com.iggie.managerdeviceapp.AdminServlet</servlet-class>
-        <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet>
         <servlet-name>DatabaseServlet</servlet-name>
         <servlet-class>com.iggie.managerdeviceapp.DatabaseServlet</servlet-class>
+        <load-on-startup>0</load-on-startup>
     </servlet>
 
     <servlet-mapping>
