@@ -759,23 +759,6 @@
       ]
     },
     {
-      "itemId": "42",
-      "itemCatCodes": ["SALADS"],
-      "itemName": "Japanese Cabbage Salad",
-      "itemDescription": "Iceburg cabbage, apple & sprouts dusted with caramalised sugar",
-      "originCountry": "",
-      "bestGoesWith": [],
-      "itemTags": [],
-      "priceCat": [
-        {
-          "catCode": "VEG",
-          "basicRate": 200,
-          "discount": 30,
-          "tax": 0
-        }
-      ]
-    },
-    {
       "itemId": "44",
       "itemCatCodes": ["SALADS"],
       "itemName": "Fresh Green Salad",

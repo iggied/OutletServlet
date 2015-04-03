@@ -21,7 +21,7 @@ public class AdminServlet extends HttpServlet
 
 //    private ContentResolver resolver;
     private android.content.Context androidContext;
-    private Database database;
+    private Database outlet_database;
     private String outletId;
 
     @Override
@@ -31,7 +31,7 @@ public class AdminServlet extends HttpServlet
         androidContext = (android.content.Context)config.getServletContext().getAttribute("org.mortbay.ijetty.context");
         outletId = getServletContext().getInitParameter("outletId");
 
-        database = (Database) getServletContext().getAttribute("database");
+        outlet_database = (Database) getServletContext().getAttribute("outlet_database");
 
         Log.d(TAG, "Servlet init completed");
 
@@ -88,6 +88,7 @@ public class AdminServlet extends HttpServlet
         loadJsonFile("staff");
         loadJsonFile("table");
         loadJsonFile("menu");
+        splitMenu();
     }
 
     private void loadJsonFile(String type)  throws IOException {
@@ -106,11 +107,11 @@ public class AdminServlet extends HttpServlet
             }
         }
 
-        Document document = database.getDocument(type+jsonMap.get("outletId"));
+        Document document = outlet_database.getDocument(type+jsonMap.get("outletId"));
         try {
             document.putProperties(jsonMap);
         } catch (CouchbaseLiteException e) {
-            Log.e(TAG, "Cannot write document to database", e);
+            Log.e(TAG, "Cannot write document to outlet_database", e);
         }
 
         Map<String, Object> doc = document.getProperties();
@@ -120,7 +121,7 @@ public class AdminServlet extends HttpServlet
 
     public void purgeOutletDB() {
 
-        Query query = database.createAllDocumentsQuery();
+        Query query = outlet_database.createAllDocumentsQuery();
         query.setIndexUpdateMode(Query.IndexUpdateMode.NEVER);
         query.setAllDocsMode(Query.AllDocsMode.ALL_DOCS);
         QueryEnumerator result = null;
@@ -141,9 +142,31 @@ public class AdminServlet extends HttpServlet
     }
 
 
+    public void splitMenu() {
+        Document menuDoc = outlet_database.getDocument("menu"+outletId);
+
+        ArrayList menuData = (ArrayList) menuDoc.getProperty("data");
+        Map<String, Object> itemMap ;
+        for (Iterator i = menuData.iterator(); i.hasNext();) {
+            itemMap = (Map<String, Object>) i.next();
+
+            itemMap.put("type", "menuitem");
+            itemMap.put("outletId", outletId);
+            itemMap.put("created_on", new java.util.Date().getTime());
+
+            Document doc = outlet_database.createDocument();
+
+            try {
+                SavedRevision ret = doc.putProperties(itemMap);
+            } catch (CouchbaseLiteException e) {
+                Log.e(TAG, "Error creating menuitem document", e);
+            }
+        }
+    }
+
     public void dumpStaff( PrintWriter writer ) {
 
-        Query query = database.getView("staffview").createQuery();
+        Query query = outlet_database.getView("ddoc/staffview").createQuery();
         QueryEnumerator result = null;
         try {
             result = query.run();

@@ -20,7 +20,8 @@ public class OutletServlet extends HttpServlet
     final String TAG = this.getClass().getName();
 
     private android.content.Context androidContext;
-    private Database database;
+    private Database outlet_database;
+    private Database order_database;
     private String outletId;
 
     @Override
@@ -28,7 +29,8 @@ public class OutletServlet extends HttpServlet
     {
         super.init(config);
         androidContext = (android.content.Context)config.getServletContext().getAttribute("org.mortbay.ijetty.context");
-        database = (Database) getServletContext().getAttribute("database");
+        outlet_database = (Database) getServletContext().getAttribute("outlet_database");
+        order_database = (Database) getServletContext().getAttribute("order_database");
         outletId = getServletContext().getInitParameter("outletId");
         Log.d(TAG, "Servlet init completed");
     }
@@ -81,12 +83,27 @@ public class OutletServlet extends HttpServlet
                 placeOrderResponse(writer, request.getInputStream());
                 break;
             }
-            case "GETORDER": {
+            case "GETPENDINGORDERBYTABLE": {
                 String tableArea = parameterMap != null ? parameterMap.get("tableArea")[0] : "" ;
                 String tableNumber = parameterMap != null ? parameterMap.get("tableNumber")[0] : "" ;
-                getOrderResponse(writer, tableArea, tableNumber);
+                getPendingOrderByTableResponse(writer, tableArea, tableNumber, "placed");
                 break;
             }
+            case "GETPENDINGORDERS": {
+                getPendingOrdersResponse(writer, "placed");
+                break;
+            }
+            case "GETORDERBYID": {
+                String id = parameterMap != null ? parameterMap.get("id")[0] : "" ;
+                getOrderByIdResponse(writer, id);
+                break;
+            }
+            case "CONFIRMORDER": {
+                String id = parameterMap != null ? parameterMap.get("id")[0] : "" ;
+                confirmOrderResponse(writer, id);
+                break;
+            }
+
         }
 
     }
@@ -98,14 +115,9 @@ public class OutletServlet extends HttpServlet
         replyMap.put("valid", "0");
 
         ArrayList keyArray = new ArrayList();
-        //keyArray.add(outletId);
-        //keyArray.add(staffId);
-        keyArray.add(Arrays.asList(outletId, staffId, staffPin));
+        keyArray.add(Arrays.asList(staffId, staffPin));
 
-
-        Query query = database.getView("ddoc/staffview").createQuery();
-        //query.setStartKey(Arrays.asList(outletId, staffId) );
-        //query.setEndKey(Arrays.asList(outletId, staffId));
+        Query query = outlet_database.getView("ddoc/staffview").createQuery();
         query.setKeys(keyArray);
         QueryEnumerator result = null;
         try {
@@ -124,9 +136,9 @@ public class OutletServlet extends HttpServlet
 
     private void getTablesResponse(PrintWriter out) throws IOException {
 
-        Query query = database.getView("tableview").createQuery();
-        query.setStartKey(Arrays.asList(outletId));
-        query.setEndKey(Arrays.asList(outletId, "ZZ"));
+        Query query = outlet_database.getView("tableview").createQuery();
+        //query.setStartKey(Arrays.asList(outletId));
+        //query.setEndKey(Arrays.asList(outletId, "zzz"));
         QueryEnumerator result = null;
         try {
             result = query.run();
@@ -139,16 +151,13 @@ public class OutletServlet extends HttpServlet
             Document doc = result.next().getDocument();
             ObjectMapper mapper = new ObjectMapper();
             out.println(mapper.writeValueAsString(doc.getProperty("data")));
-            Log.i(TAG, "document id=" + doc.getId() + " outletid=" + doc.getProperty("outletId"));
         }
 
     }
 
-    private void getMenuResponse(PrintWriter out) throws IOException {
+/*    private void getMenuResponse(PrintWriter out) throws IOException {
 
-        Query query = database.getView("menuview").createQuery();
-        query.setStartKey(Arrays.asList(outletId) );
-        query.setEndKey(Arrays.asList(outletId, "zzz"));
+        Query query = outlet_database.getView("menuview").createQuery();
         QueryEnumerator result = null;
         try {
             result = query.run();
@@ -157,14 +166,35 @@ public class OutletServlet extends HttpServlet
         }
 
         if (result.hasNext()) {
-            //Map<String, Object> resultMap = (Map) result.next().getValue();
             Document doc = result.next().getDocument();
             ObjectMapper mapper = new ObjectMapper();
             out.println( mapper.writeValueAsString(doc.getProperty("data")));
-            Log.i(TAG, "document id=" + doc.getId() + " outletid=" + doc.getProperty("outletId"));
         }
 
+    }*/
+
+    private void getMenuResponse(PrintWriter out) throws IOException {
+
+        Query query = outlet_database.getView("menuview").createQuery();
+        QueryEnumerator result = null;
+        try {
+            result = query.run();
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Error running query", e);
+        }
+
+        ArrayList resultMenu = new ArrayList();
+        for (Iterator<QueryRow> it = result; it.hasNext(); ) {
+            QueryRow row = it.next();
+
+            Document doc = row.getDocument();
+            resultMenu.add(doc.getProperties());
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        out.println( mapper.writeValueAsString(resultMenu));
     }
+
 
     private void placeOrderResponse(PrintWriter out, InputStream is) throws IOException {
 
@@ -178,7 +208,7 @@ public class OutletServlet extends HttpServlet
         orderMap.put("created_on", new java.util.Date().getTime());
 
         SavedRevision ret = null;
-        Document doc = database.createDocument();
+        Document doc = order_database.createDocument();
         try {
             ret = doc.putProperties(orderMap);
         } catch (CouchbaseLiteException e) {
@@ -190,11 +220,11 @@ public class OutletServlet extends HttpServlet
     }
 
 
-    private void getOrderResponse(PrintWriter out, String tableArea, String tableNumber) throws IOException {
+    private void getPendingOrderByTableResponse(PrintWriter out, String tableArea, String tableNumber, String status) throws IOException {
 
-        Query query = database.getView("pendingorderview").createQuery();
-        query.setStartKey(Arrays.asList(outletId, tableArea, tableNumber));
-        query.setEndKey(Arrays.asList(outletId, tableArea, tableNumber, "zzzzz"));
+        Query query = order_database.getView("orderview").createQuery();
+        query.setStartKey(Arrays.asList(tableNumber, status));
+        query.setEndKey(Arrays.asList(tableNumber, status, "zzz"));
         QueryEnumerator result = null;
         try {
             result = query.run();
@@ -209,7 +239,7 @@ public class OutletServlet extends HttpServlet
         for (Iterator<QueryRow> it = result; it.hasNext(); ) {
             QueryRow row = it.next();
 
-            if (row.getValue().equals("placed")) {
+            //if (row.getValue().equals("placed")) {
                 doc = row.getDocument();
                 order = (Map<String, Object>) doc.getProperty("order");
 
@@ -220,12 +250,78 @@ public class OutletServlet extends HttpServlet
 
                     retOrders.add(itemMap);
                 }
-            }
+            //}
 
         }
 
         ObjectMapper mapper = new ObjectMapper();
         out.println(mapper.writeValueAsString(retOrders));
+    }
+
+
+    private void getOrderByIdResponse(PrintWriter out, String id) throws IOException {
+
+        Document doc = order_database.getDocument(id);
+
+        ObjectMapper mapper = new ObjectMapper();
+        out.println(mapper.writeValueAsString(doc.getUserProperties()));
+    }
+
+    private void confirmOrderResponse(PrintWriter out, String id) throws IOException {
+
+        Document doc = order_database.getDocument(id);
+
+        Map<String, Object> properties = new HashMap<String, Object>();
+
+        properties.putAll(doc.getProperties());
+        properties.put("status", "confirmed");
+        properties.put("updated_on", new java.util.Date().getTime());
+        
+        try {
+            doc.putProperties(properties);
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Error confirming order ", e);
+        }
+
+        out.println("{\"status\": \"ok\"}");
+    }
+
+
+    private void getPendingOrdersResponse(PrintWriter out, String status) throws IOException {
+
+       Query query = order_database.getView("orderbystatusview").createQuery();
+        query.setStartKey(Arrays.asList(status));
+        query.setEndKey(Arrays.asList(status, "zzz"));
+        QueryEnumerator result = null;
+        try {
+            result = query.run();
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Error running query", e);
+        }
+
+        Document doc;
+        Map<String, Object> order ;
+        ArrayList orders = new ArrayList() ;
+        //ArrayList retOrders = new ArrayList();
+        for (Iterator<QueryRow> it = result; it.hasNext(); ) {
+            QueryRow row = it.next();
+
+            doc = row.getDocument();
+            orders.add(doc.getProperties());
+/*            order = (Map<String, Object>) doc.getProperty("order");
+
+            orders = (ArrayList) order.get("data");
+            Map<String, Object> itemMap ;
+            for (Iterator i = orders.iterator(); i.hasNext();) {
+                itemMap = (Map<String, Object>) i.next();
+
+                retOrders.add(itemMap);
+            }
+*/        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        out.println(mapper.writeValueAsString(orders));
 
     }
+
 }
