@@ -135,7 +135,7 @@ public class DatabaseServlet extends HttpServlet {
             }
         }, "5");
 
-        outlet_database.getView("deviceview").setMap(new Mapper() {
+        outlet_database.getView("ddoc/deviceview").setMap(new Mapper() {
             @Override
             public void map(Map<String, Object> document, Emitter emitter) {
 
@@ -151,7 +151,7 @@ public class DatabaseServlet extends HttpServlet {
             }
         }, "3");
 
-        outlet_database.getView("tableview").setMap(new Mapper() {
+        outlet_database.getView("ddoc/tableview").setMap(new Mapper() {
             @Override
             public void map(Map<String, Object> document, Emitter emitter) {
 
@@ -190,7 +190,7 @@ public class DatabaseServlet extends HttpServlet {
             }
         }, "5");*/
 
-        outlet_database.getView("menuview").setMap(new Mapper() {
+        outlet_database.getView("ddoc/menuview").setMap(new Mapper() {
             @Override
             public void map(Map<String, Object> document, Emitter emitter) {
 
@@ -209,44 +209,100 @@ public class DatabaseServlet extends HttpServlet {
         }, "5");
 
 
-        order_database.getView("orderview").setMap(new Mapper() {
+/*        order_database.getView("ddoc/ordertablestatusview").setMap(new Mapper() {
             @Override
             public void map(Map<String, Object> document, Emitter emitter) {
 
-                if (document.get("type").equals("order")) {
+                if (document.get("type").equals("orderpart")) {
                     Map<String, Object> order;
                     order = (HashMap) document.get("order");
 
-                    emitter.emit(Arrays.asList(order.get("tableNumber"), document.get("status"), document.get("created_on"), document.get("_id")),
+                    emitter.emit(Arrays.asList(order.get("tableNumber"), document.get("status"), document.get("created_on")),
                             null);
 /*
-                    List dataList = (List) order.get("data");
-                    Map<String, Object> dataMap;
-                    for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
-                        dataMap = li.next();
-                        emitter.emit(Arrays.asList(document.get("outletId"), dataMap.get("itemId")), dataMap);
-                    }
+//                    List dataList = (List) order.get("data");
+//                    Map<String, Object> dataMap;
+//                    for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
+//                        dataMap = li.next();
+//                        emitter.emit(Arrays.asList(document.get("outletId"), dataMap.get("itemId")), dataMap);
+//                    }
+
+                }
+            }
+        }, "5");
 */
+
+
+/*        order_database.getView("ddoc/orderbystatusview").setMap(new Mapper() {
+            @Override
+            public void map(Map<String, Object> document, Emitter emitter) {
+
+                if (document.get("type").equals("orderpart")) {
+
+                    emitter.emit(Arrays.asList(document.get("status"), document.get("created_on")),
+                            null);
+
+                }
+            }
+        }, "2");*/
+
+
+/*        order_database.getView("ddoc/pendingorderview").setMap(new Mapper() {
+            @Override
+            public void map(Map<String, Object> document, Emitter emitter) {
+
+                if (document.get("type").equals("orderpart") && (document.get("status").equals("placed") || document.get("status").equals("confirmed")) ) {
+                    emitter.emit(Arrays.asList(document.get("created_on")),
+                            null);
+                }
+            }
+        }, "2");
+*/
+ 
+        order_database.getView("ddoc/orderstatusbyorderidview").setMap(new Mapper() {
+            @Override
+            public void map(Map<String, Object> document, Emitter emitter) {
+
+                if (document.get("type").equals("orderpartstatus")) {
+
+                    emitter.emit(Arrays.asList(document.get("order_id"), document.get("closed"), document.get("status")), null);
                 }
             }
         }, "4");
 
-
-        order_database.getView("orderbystatusview").setMap(new Mapper() {
+        order_database.getView("ddoc/orderpartidstatusview").setMap(new Mapper() {
             @Override
             public void map(Map<String, Object> document, Emitter emitter) {
 
-                if (document.get("type").equals("order")) {
-                    Map<String, Object> order;
-                    order = (HashMap) document.get("order");
+                if (document.get("type").equals("orderpartstatus")) {
 
-                    emitter.emit(Arrays.asList(document.get("status"), document.get("created_on"), document.get("_id")),
-                            null);
-
+                    emitter.emit(document.get("orderpart_id"), null);
                 }
             }
-        }, "1");
+        }, "3");
 
+        order_database.getView("ddoc/orderstatusview").setMap(new Mapper() {
+            @Override
+            public void map(Map<String, Object> document, Emitter emitter) {
+
+                if (document.get("type").equals("orderpartstatus")) {
+
+                    emitter.emit(Arrays.asList(document.get("closed"), document.get("status")), document.get("orderpart_id"));
+                }
+            }
+        }, "3");
+
+        order_database.getView("ddoc/ordertablestatusview").setMap(new Mapper() {
+            @Override
+            public void map(Map<String, Object> document, Emitter emitter) {
+
+                if (document.get("type").equals("orderpartstatus")) {
+
+                    emitter.emit(Arrays.asList(document.get("tableNumber"), document.get("closed"), document.get("status")), 
+                        document.get("orderpart_id"));
+                }
+            }
+        }, "6");
 
     }
 

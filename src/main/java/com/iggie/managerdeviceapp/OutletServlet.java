@@ -79,18 +79,19 @@ public class OutletServlet extends HttpServlet
                 getMenuResponse(writer);
                 break;
             }
-            case "PLACEORDER": {
-                placeOrderResponse(writer, request.getInputStream());
+            case "PLACEORDERPART": {
+                placeOrderPartResponse(writer, request.getInputStream());
                 break;
             }
             case "GETPENDINGORDERBYTABLE": {
-                String tableArea = parameterMap != null ? parameterMap.get("tableArea")[0] : "" ;
+                //String order_id = parameterMap != null ? parameterMap.get("order_id")[0] : "" ;
+                String staffId = parameterMap != null ? parameterMap.get("staffId")[0] : "" ;
                 String tableNumber = parameterMap != null ? parameterMap.get("tableNumber")[0] : "" ;
-                getPendingOrderByTableResponse(writer, tableArea, tableNumber, "placed");
+                getPendingOrderByTableResponse(writer, staffId, tableNumber);
                 break;
             }
             case "GETPENDINGORDERS": {
-                getPendingOrdersResponse(writer, "placed");
+                getPendingOrdersResponse(writer);
                 break;
             }
             case "GETORDERBYID": {
@@ -98,12 +99,22 @@ public class OutletServlet extends HttpServlet
                 getOrderByIdResponse(writer, id);
                 break;
             }
-            case "CONFIRMORDER": {
+            case "CONFIRMORDERPART": {
                 String id = parameterMap != null ? parameterMap.get("id")[0] : "" ;
-                confirmOrderResponse(writer, id);
+                updateOrderStatusResponse(writer, id, "confirm", "0");
                 break;
             }
-
+            case "ORDERPARTDELIVERED": {
+                String id = parameterMap != null ? parameterMap.get("id")[0] : "" ;
+                updateOrderStatusResponse(writer, id, "delivered", "0");
+                break;
+            }
+            case "ORDERPAID": {
+                String order_id = parameterMap != null ? parameterMap.get("order_id")[0] : "" ;
+                float amount = Float.parseFloat(parameterMap != null ? parameterMap.get("amount")[0] : "0") ;
+                orderPaidResponse(writer, order_id, amount);
+                break;
+            }
         }
 
     }
@@ -136,7 +147,7 @@ public class OutletServlet extends HttpServlet
 
     private void getTablesResponse(PrintWriter out) throws IOException {
 
-        Query query = outlet_database.getView("tableview").createQuery();
+        Query query = outlet_database.getView("ddoc/tableview").createQuery();
         //query.setStartKey(Arrays.asList(outletId));
         //query.setEndKey(Arrays.asList(outletId, "zzz"));
         QueryEnumerator result = null;
@@ -155,27 +166,10 @@ public class OutletServlet extends HttpServlet
 
     }
 
-/*    private void getMenuResponse(PrintWriter out) throws IOException {
-
-        Query query = outlet_database.getView("menuview").createQuery();
-        QueryEnumerator result = null;
-        try {
-            result = query.run();
-        } catch (CouchbaseLiteException e) {
-            Log.e(TAG, "Error running query", e);
-        }
-
-        if (result.hasNext()) {
-            Document doc = result.next().getDocument();
-            ObjectMapper mapper = new ObjectMapper();
-            out.println( mapper.writeValueAsString(doc.getProperty("data")));
-        }
-
-    }*/
 
     private void getMenuResponse(PrintWriter out) throws IOException {
 
-        Query query = outlet_database.getView("menuview").createQuery();
+        Query query = outlet_database.getView("ddoc/menuview").createQuery();
         QueryEnumerator result = null;
         try {
             result = query.run();
@@ -196,35 +190,69 @@ public class OutletServlet extends HttpServlet
     }
 
 
-    private void placeOrderResponse(PrintWriter out, InputStream is) throws IOException {
+    private void placeOrderPartResponse(PrintWriter out, InputStream is) throws IOException {
 
         ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> orderMap;
+        final Map<String, Object> orderMap;
 
         orderMap = mapper.readValue(is, Map.class);
-        orderMap.put("type", "order");
+        orderMap.put("type", "orderpart");
         orderMap.put("outletId", outletId);
         orderMap.put("status", "placed");
         orderMap.put("created_on", new java.util.Date().getTime());
 
         SavedRevision ret = null;
-        Document doc = order_database.createDocument();
-        try {
-            ret = doc.putProperties(orderMap);
-        } catch (CouchbaseLiteException e) {
-            Log.e(TAG, "Error creating order document", e);
-        }
 
-        out.println(mapper.writeValueAsString(ret.getProperties() ));
+        boolean committed =
+        order_database.runInTransaction(new TransactionalTask() {
 
+            public boolean run() {
+
+                Document doc = order_database.createDocument();
+                try {
+                    doc.putProperties(orderMap);
+                } catch (CouchbaseLiteException e) {
+                    Log.e(TAG, "Error creating order part document", e);
+                    return false;
+                }
+
+
+                String orderpart_id = doc.getId();
+                Map<String, Object> order = (Map) orderMap.get("order");
+                String tableNumber = (String) order.get("tableNumber");
+                String order_id = (String) order.get("order_id");
+                Map<String, Object> statusMap = new HashMap();
+                statusMap.put("type", "orderpartstatus");
+                statusMap.put("updated_on", new java.util.Date().getTime());
+                statusMap.put("tableNumber", tableNumber);
+                statusMap.put("orderpart_id", orderpart_id);
+                statusMap.put("order_id", order_id);
+                statusMap.put("closed", "0");
+                statusMap.put("status", "placed");
+
+                doc = order_database.createDocument();
+                try {
+                    doc.putProperties(statusMap);
+                } catch (CouchbaseLiteException e) {
+                    Log.e(TAG, "Error creating order status document", e);
+                    return false;
+                }
+
+                return true;
+            }
+        });
+
+        //out.println(mapper.writeValueAsString(ret.getProperties() ));
+
+        out.println(mapper.writeValueAsString(orderMap));
     }
 
 
-    private void getPendingOrderByTableResponse(PrintWriter out, String tableArea, String tableNumber, String status) throws IOException {
+    private void getPendingOrderByTableResponse(PrintWriter out, String staffId, String tableNumber) throws IOException {
 
-        Query query = order_database.getView("orderview").createQuery();
-        query.setStartKey(Arrays.asList(tableNumber, status));
-        query.setEndKey(Arrays.asList(tableNumber, status, "zzz"));
+        Query query = order_database.getView("ddoc/ordertablestatusview").createQuery();
+        query.setStartKey(Arrays.asList(tableNumber, "0"));
+        query.setEndKey(Arrays.asList(tableNumber, "0", "zzz"));
         QueryEnumerator result = null;
         try {
             result = query.run();
@@ -233,31 +261,67 @@ public class OutletServlet extends HttpServlet
         }
 
         Document doc;
-        Map<String, Object> order ;
-        ArrayList orders = null ;
+        Map<String, Object> order = new HashMap();
+        Map<String, Object> resultMap = new HashMap();
+        ArrayList orderitems = new ArrayList();
         ArrayList retOrders = new ArrayList();
-        for (Iterator<QueryRow> it = result; it.hasNext(); ) {
-            QueryRow row = it.next();
+        String o_id = null;
 
-            //if (row.getValue().equals("placed")) {
-                doc = row.getDocument();
+        Iterator<QueryRow> it = result;
+        if (it.hasNext()) {
+            for (; it.hasNext() ;) {
+                QueryRow row = it.next();
+
+                String orderpart_id = (String) row.getValue();
+
+                doc = order_database.getDocument(orderpart_id);
+
                 order = (Map<String, Object>) doc.getProperty("order");
+                o_id = (String) order.get("order_id");
 
-                orders = (ArrayList) order.get("data");
+                orderitems = (ArrayList) order.get("data");
                 Map<String, Object> itemMap ;
-                for (Iterator i = orders.iterator(); i.hasNext();) {
+                for (Iterator i = orderitems.iterator(); i.hasNext();) {
                     itemMap = (Map<String, Object>) i.next();
 
                     retOrders.add(itemMap);
                 }
-            //}
-
+            }
+        } else {
+            o_id = createInitOrder(tableNumber);
         }
 
+        order = new HashMap();
+        order.put("order_id", o_id);
+        order.put("staffId", staffId);
+        order.put("tableNumber", tableNumber);
+        order.put("data", retOrders);     
+
+        resultMap.put("order", order);
+
         ObjectMapper mapper = new ObjectMapper();
-        out.println(mapper.writeValueAsString(retOrders));
+        out.println(mapper.writeValueAsString(resultMap));
     }
 
+    private String createInitOrder(String tableNumber){
+        Map<String, Object> orderMap = new HashMap();
+        orderMap.put("type", "order");
+        orderMap.put("outletId", outletId);
+        orderMap.put("tableNumber", tableNumber);
+        orderMap.put("status", "init");
+        orderMap.put("created_on", new java.util.Date().getTime());
+
+        SavedRevision rev = null;
+        Document doc = order_database.createDocument();
+
+        try {
+            rev = doc.putProperties(orderMap);
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Error creating order document", e);
+        }
+
+        return (String) rev.getProperty("_id");
+    }
 
     private void getOrderByIdResponse(PrintWriter out, String id) throws IOException {
 
@@ -267,14 +331,30 @@ public class OutletServlet extends HttpServlet
         out.println(mapper.writeValueAsString(doc.getUserProperties()));
     }
 
-    private void confirmOrderResponse(PrintWriter out, String id) throws IOException {
+    private void updateOrderStatusResponse(PrintWriter out, String orderpart_id, String status, String closed) throws IOException {
 
-        Document doc = order_database.getDocument(id);
+        Query query = order_database.getView("ddoc/orderpartidstatusview").createQuery();
+        ArrayList keyArray = new ArrayList();
+        keyArray.add(orderpart_id);
+        QueryEnumerator result = null;
+        try {
+            result = query.run();
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Error running orderpartidstatusview query", e);
+        }
+        String orderstatus_id = null;
+        if (result.hasNext()) {
+            QueryRow row = result.next();
+            orderstatus_id = row.getDocumentId();
+        }
+
+        Document doc = order_database.getDocument(orderstatus_id);
 
         Map<String, Object> properties = new HashMap<String, Object>();
 
         properties.putAll(doc.getProperties());
-        properties.put("status", "confirmed");
+        properties.put("status", status);
+        properties.put("closed", closed);        
         properties.put("updated_on", new java.util.Date().getTime());
         
         try {
@@ -287,11 +367,12 @@ public class OutletServlet extends HttpServlet
     }
 
 
-    private void getPendingOrdersResponse(PrintWriter out, String status) throws IOException {
+    private void getPendingOrdersResponse(PrintWriter out) throws IOException {
 
-       Query query = order_database.getView("orderbystatusview").createQuery();
-        query.setStartKey(Arrays.asList(status));
-        query.setEndKey(Arrays.asList(status, "zzz"));
+        Query query = order_database.getView("ddoc/orderstatusview").createQuery();
+        query.setStartKey(Arrays.asList("0"));
+        query.setEndKey(Arrays.asList("0", "zzz"));
+
         QueryEnumerator result = null;
         try {
             result = query.run();
@@ -302,26 +383,55 @@ public class OutletServlet extends HttpServlet
         Document doc;
         Map<String, Object> order ;
         ArrayList orders = new ArrayList() ;
-        //ArrayList retOrders = new ArrayList();
         for (Iterator<QueryRow> it = result; it.hasNext(); ) {
             QueryRow row = it.next();
 
-            doc = row.getDocument();
+
+            String orderpart_id = (String) row.getValue();
+
+            doc = order_database.getDocument(orderpart_id);
             orders.add(doc.getProperties());
-/*            order = (Map<String, Object>) doc.getProperty("order");
-
-            orders = (ArrayList) order.get("data");
-            Map<String, Object> itemMap ;
-            for (Iterator i = orders.iterator(); i.hasNext();) {
-                itemMap = (Map<String, Object>) i.next();
-
-                retOrders.add(itemMap);
-            }
-*/        }
+        }
 
         ObjectMapper mapper = new ObjectMapper();
         out.println(mapper.writeValueAsString(orders));
 
     }
 
+    private void orderPaidResponse(PrintWriter out, String order_id, float amount) throws IOException {
+
+        Query query = order_database.getView("ddoc/orderstatusbyorderidview").createQuery();
+        query.setStartKey(Arrays.asList(order_id));
+        query.setEndKey(Arrays.asList(order_id, "zzz"));
+
+        QueryEnumerator result = null;
+        try {
+            result = query.run();
+        } catch (CouchbaseLiteException e) {
+            Log.e(TAG, "Error running query on orderstatusbyorderidview", e);
+        }
+
+        for (Iterator<QueryRow> it = result; it.hasNext(); ) {
+            QueryRow row = it.next();
+
+            Document doc = row.getDocument();
+
+            Map<String, Object> properties = new HashMap<String, Object>();
+
+            properties.putAll(doc.getProperties());
+            properties.put("status", "paid");
+            properties.put("closed", "1");        
+            properties.put("updated_on", new java.util.Date().getTime());
+            
+            try {
+                doc.putProperties(properties);
+            } catch (CouchbaseLiteException e) {
+                Log.e(TAG, "Error updating order status to paid ", e);
+            }
+
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        out.println("{\"status\": \"ok\"}");
+    }
 }
