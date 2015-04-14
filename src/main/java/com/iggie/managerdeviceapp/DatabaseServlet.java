@@ -4,6 +4,7 @@ import com.couchbase.lite.*;
 import com.couchbase.lite.android.AndroidContext;
 import com.couchbase.lite.listener.Credentials;
 import com.couchbase.lite.listener.LiteListener;
+import com.couchbase.lite.replicator.Replication;
 import com.couchbase.lite.util.Log;
 
 import javax.servlet.ServletConfig;
@@ -12,11 +13,12 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import java.util.HashMap;
 
 public class DatabaseServlet extends HttpServlet {
 
@@ -28,6 +30,13 @@ public class DatabaseServlet extends HttpServlet {
     private Database order_database = null;
     private LiteListener listener = null;
 
+    private Replication outletPullReplication;
+    private Replication outletPushReplication;
+    private Replication orderPullReplication;
+    private Replication orderPushReplication;
+    private ChangeDelegate cd = new ChangeDelegate();
+
+
     private String outletId;
 
     private static final int DEFAULT_LISTEN_PORT = 5984;
@@ -37,6 +46,8 @@ public class DatabaseServlet extends HttpServlet {
 
     private static final String LISTEN_LOGIN_PARAM_NAME = "username";
     private static final String LISTEN_PASSWORD_PARAM_NAME = "password";
+
+    private static final String REPLICATION_URL = "http://172.16.67.138:4984/outlet-sync";
 
     private Credentials allowedCredentials;
 
@@ -48,8 +59,17 @@ public class DatabaseServlet extends HttpServlet {
         androidContext = (android.content.Context)config.getServletContext().getAttribute("org.mortbay.ijetty.context");
         outletId = getServletContext().getInitParameter("outletId");
 
+        URL syncUrl;
+        try {
+            syncUrl = new URL(REPLICATION_URL);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+
         try {
             int port = startCBLListener(DEFAULT_LISTEN_PORT);
+            startCBReplication(syncUrl);
+
             showListenPort(port);
             showListenCredentials();
         } catch (Exception e) {
@@ -57,9 +77,9 @@ public class DatabaseServlet extends HttpServlet {
         }
 
         CreateViews();
-        com.couchbase.lite.util.Log.enableLogging(Log.TAG_VIEW, Log.VERBOSE);
+/*        com.couchbase.lite.util.Log.enableLogging(Log.TAG_VIEW, Log.VERBOSE);
         com.couchbase.lite.util.Log.enableLogging(Log.TAG_QUERY, Log.VERBOSE);
-        com.couchbase.lite.util.Log.enableLogging(Log.TAG_DATABASE, Log.VERBOSE);
+        com.couchbase.lite.util.Log.enableLogging(Log.TAG_DATABASE, Log.VERBOSE);*/
 
         Log.d(TAG, "Servlet init completed");
 
@@ -91,6 +111,15 @@ public class DatabaseServlet extends HttpServlet {
 
         manager = new Manager(new AndroidContext(androidContext), Manager.DEFAULT_OPTIONS);
 
+        manager.enableLogging(Log.TAG_VIEW, Log.VERBOSE);
+        manager.enableLogging(Log.TAG_QUERY, Log.VERBOSE);
+        manager.enableLogging(Log.TAG_DATABASE, Log.VERBOSE);
+        manager.enableLogging(Log.TAG_CHANGE_TRACKER, Log.VERBOSE);
+        manager.enableLogging(Log.TAG_LISTENER, Log.VERBOSE);
+        manager.enableLogging(Log.TAG_REMOTE_REQUEST, Log.VERBOSE);
+        manager.enableLogging(Log.TAG_SYNC, Log.VERBOSE);
+        manager.enableLogging(Log.TAG_SYNC_ASYNC_TASK, Log.VERBOSE);
+
         outlet_database = manager.getDatabase(OUTLET_DATABASE_NAME + outletId);
         outlet_database.open();
 
@@ -114,6 +143,31 @@ public class DatabaseServlet extends HttpServlet {
         thread.start();
 
         return port;
+
+    }
+
+
+    private void startCBReplication(URL url) throws IOException, CouchbaseLiteException {
+
+        orderPullReplication = order_database.createPullReplication(url);
+        orderPushReplication = order_database.createPushReplication(url);
+        outletPullReplication = outlet_database.createPullReplication(url);
+        outletPushReplication = outlet_database.createPushReplication(url);
+
+        orderPullReplication.setContinuous(true);
+        orderPushReplication.setContinuous(true);
+        outletPullReplication.setContinuous(true);
+        outletPushReplication.setContinuous(true);
+
+        orderPullReplication.start();
+        orderPushReplication.start();
+        outletPullReplication.start();
+        outletPushReplication.start();
+
+        orderPullReplication.addChangeListener(cd);
+        orderPushReplication.addChangeListener(cd);
+        outletPullReplication.addChangeListener(cd);
+        outletPushReplication.addChangeListener(cd);
 
     }
 
@@ -309,9 +363,50 @@ public class DatabaseServlet extends HttpServlet {
 
     public void destroy() {
         listener.stop();
+
+        orderPullReplication.stop();
+        orderPushReplication.stop();
+        outletPullReplication.stop();
+        outletPushReplication.stop();
+
+
+        orderPullReplication.removeChangeListener(cd);
+        orderPushReplication.removeChangeListener(cd);
+        outletPullReplication.removeChangeListener(cd);
+        outletPushReplication.removeChangeListener(cd);
+
         outlet_database.close();
         order_database.close();
         manager.close();
     }
 
 }
+
+class ChangeDelegate implements Replication.ChangeListener{
+
+    final String TAG = this.getClass().getName();
+
+    @Override
+    public void changed(Replication.ChangeEvent event) {
+
+        Replication replication = event.getSource();
+        Log.d(TAG, "Replication : " + replication + " changed.");
+        if (!replication.isRunning()) {
+            String msg = String.format("Replicator %s not running", replication);
+            Log.d(TAG, msg);
+        } else {
+            int processed = replication.getCompletedChangesCount();
+            int total = replication.getChangesCount();
+            String msg = String.format("Replicator processed %d / %d", processed, total);
+            Log.d(TAG, msg);
+        }
+
+/*        if (event.getError() != null) {
+            Log.e(TAG, "Sync error", event.getError());
+        }*/
+
+    }
+}
+
+
+
