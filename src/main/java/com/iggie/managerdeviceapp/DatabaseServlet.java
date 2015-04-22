@@ -47,7 +47,8 @@ public class DatabaseServlet extends HttpServlet {
     private static final String LISTEN_LOGIN_PARAM_NAME = "username";
     private static final String LISTEN_PASSWORD_PARAM_NAME = "password";
 
-    private static final String REPLICATION_URL = "http://172.16.67.138:4984/outlet-sync";
+    private static final String OUTLET_REPLICATION_URL = "http://172.16.67.138:4984/outlet-sync";
+    private static final String ORDER_REPLICATION_URL = "http://172.16.67.138:4984/order-sync";
 
     private Credentials allowedCredentials;
 
@@ -59,16 +60,17 @@ public class DatabaseServlet extends HttpServlet {
         androidContext = (android.content.Context)config.getServletContext().getAttribute("org.mortbay.ijetty.context");
         outletId = getServletContext().getInitParameter("outletId");
 
-        URL syncUrl;
+        URL outlet_SyncUrl, order_SyncUrl;
         try {
-            syncUrl = new URL(REPLICATION_URL);
+            outlet_SyncUrl = new URL(OUTLET_REPLICATION_URL);
+            order_SyncUrl = new URL(ORDER_REPLICATION_URL);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
 
         try {
             int port = startCBLListener(DEFAULT_LISTEN_PORT);
-            startCBReplication(syncUrl);
+            startCBReplication(outlet_SyncUrl, order_SyncUrl);
 
             showListenPort(port);
             showListenCredentials();
@@ -76,7 +78,6 @@ public class DatabaseServlet extends HttpServlet {
             android.util.Log.e(TAG, "Error starting LiteServ", e);
         }
 
-        CreateViews();
 /*        com.couchbase.lite.util.Log.enableLogging(Log.TAG_VIEW, Log.VERBOSE);
         com.couchbase.lite.util.Log.enableLogging(Log.TAG_QUERY, Log.VERBOSE);
         com.couchbase.lite.util.Log.enableLogging(Log.TAG_DATABASE, Log.VERBOSE);*/
@@ -129,6 +130,7 @@ public class DatabaseServlet extends HttpServlet {
         getServletContext().setAttribute("outlet_database", outlet_database);
         getServletContext().setAttribute("order_database", order_database);
 
+        CreateViews();
 
         if (LISTEN_LOGIN_PARAM_NAME!=null && LISTEN_PASSWORD_PARAM_NAME!=null){
             allowedCredentials = new Credentials(LISTEN_LOGIN_PARAM_NAME, LISTEN_PASSWORD_PARAM_NAME);
@@ -147,12 +149,12 @@ public class DatabaseServlet extends HttpServlet {
     }
 
 
-    private void startCBReplication(URL url) throws IOException, CouchbaseLiteException {
+    private void startCBReplication(URL outlet_url, URL order_url) throws IOException, CouchbaseLiteException {
 
-        orderPullReplication = order_database.createPullReplication(url);
-        orderPushReplication = order_database.createPushReplication(url);
-        outletPullReplication = outlet_database.createPullReplication(url);
-        outletPushReplication = outlet_database.createPushReplication(url);
+        orderPullReplication = order_database.createPullReplication(order_url);
+        orderPushReplication = order_database.createPushReplication(order_url);
+        outletPullReplication = outlet_database.createPullReplication(outlet_url);
+        outletPushReplication = outlet_database.createPushReplication(outlet_url);
 
         orderPullReplication.setContinuous(true);
         orderPushReplication.setContinuous(true);
@@ -187,7 +189,7 @@ public class DatabaseServlet extends HttpServlet {
                     }
                 }
             }
-        }, "5");
+        }, "6");
 
         outlet_database.getView("ddoc/deviceview").setMap(new Mapper() {
             @Override

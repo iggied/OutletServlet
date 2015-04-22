@@ -37,7 +37,7 @@ dependencies {
     providedCompile(name:'couchbase-lite-java-listener-1.0.3.1', ext:'jar')
     providedCompile group: 'com.google.android', name: 'android', version:'1.6_r2'
     providedCompile group: 'org.mortbay.jetty', name: 'servlet-api', version:'2.5-20081211'
-
+    providedCompile(name: 'http-rest-client_2.10-1.0.21', ext:'jar')
 }
 
 task dexClasses << {

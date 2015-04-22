@@ -2,6 +2,10 @@ package com.iggie.managerdeviceapp;
 
 import com.couchbase.lite.*;
 import com.couchbase.lite.util.Log;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import javax.servlet.ServletConfig;
@@ -433,5 +437,19 @@ public class OutletServlet extends HttpServlet
 
         ObjectMapper mapper = new ObjectMapper();
         out.println("{\"status\": \"ok\"}");
+    }
+
+
+    private void testMethod() throws UnirestException {
+
+
+        HttpResponse<JsonNode> jsonResponse = Unirest.post("http://httpbin.org/post")
+                .header("accept", "application/json")
+                .queryString("apiKey", "123")
+                .field("parameter", "value")
+                .field("foo", "bar")
+                .asJson();
+
+
     }
 }
