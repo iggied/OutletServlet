@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="http-rest-client_2.10-1.0.21">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/lib/http-rest-client_2.10-1.0.21.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

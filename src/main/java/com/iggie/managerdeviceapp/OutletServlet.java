@@ -2,10 +2,12 @@ package com.iggie.managerdeviceapp;
 
 import com.couchbase.lite.*;
 import com.couchbase.lite.util.Log;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
+import org.apache.http.HttpResponse;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.impl.client.DefaultHttpClient;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import javax.servlet.ServletConfig;
@@ -13,11 +15,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintWriter;
+import java.io.*;
 import java.util.*;
-
 
 public class OutletServlet extends HttpServlet
 {
@@ -68,6 +67,11 @@ public class OutletServlet extends HttpServlet
         response.setContentType("application/json");
 
         switch (action) {
+            case "TEST": {
+                String cmd = parameterMap != null ? parameterMap.get("cmd")[0] : "" ;
+                testMethod(writer, cmd);
+                break;
+            }
             case "VALIDATECREDS": {
                 String staffId = parameterMap != null ? parameterMap.get("staffId")[0] : "" ;
                 String staffPin = parameterMap != null ? parameterMap.get("staffPin")[0] : "" ;
@@ -440,16 +444,67 @@ public class OutletServlet extends HttpServlet
     }
 
 
-    private void testMethod() throws UnirestException {
+    private void testMethod(PrintWriter out, String cmd) throws IOException {
+
+        //Get get = Http.get("http://172.16.67.138:4984/outlet-sync");
+        //"Authorization","Basic dXNlcm5hbWU6cGFzc3dvcmQ="
+        //Get get = Http.get(cmd);
+        //get.basic("username", "password");
+        //out.println(get.toString());
+
+/*        org.javalite.http.Get get = org.javalite.http.Http.get("http://192.168.56.101:5984/outletdb1").basic("username", "password");
+
+        out.println(get.text());
+        out.println(get.headers());
+        out.println(get.responseCode());*/
+
+        try {
+
+            //CredentialsProvider cp =  new BasicCredentialsProvider();
+            //AuthScope as = new AuthScope("192.168.56.101", 5984);
+            UsernamePasswordCredentials creds = new UsernamePasswordCredentials("username", "password");
+            //cp.setCredentials(as, creds);
+
+            // create HTTP Client
+            DefaultHttpClient httpClient = new DefaultHttpClient();
+            //httpClient.setCredentialsProvider(cp);
 
 
-        HttpResponse<JsonNode> jsonResponse = Unirest.post("http://httpbin.org/post")
-                .header("accept", "application/json")
-                .queryString("apiKey", "123")
-                .field("parameter", "value")
-                .field("foo", "bar")
-                .asJson();
+            // Create new getRequest with below mentioned URL
+            HttpGet getRequest = new HttpGet(cmd);
 
+            //getRequest.addHeader("Authorization","Basic dXNlcm5hbWU6cGFzc3dvcmQ=");
+            // Add additional header to getRequest which accepts application/json data
+            getRequest.addHeader("accept", "application/json");
+            getRequest.addHeader(BasicScheme.authenticate(creds, "US-ASCII", false));
+            // Execute your request and catch response
+            HttpResponse response = httpClient.execute(getRequest);
 
+            // Check for HTTP response code: 200 = success
+            if (response.getStatusLine().getStatusCode() != 200) {
+                throw new RuntimeException("Failed : HTTP error code : " + response.getStatusLine().getStatusCode());
+            }
+
+            // Get-Capture Complete application/xml body response
+            BufferedReader br = new BufferedReader(new InputStreamReader((response.getEntity().getContent())));
+            String output;
+            out.println("============Output:============");
+
+            // Simply iterate through XML response and show on console.
+            while ((output = br.readLine()) != null) {
+                out.println(output);
+            }
+
+        } catch (ClientProtocolException e) {
+            e.printStackTrace();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
+
+        
+
+
+
 }
