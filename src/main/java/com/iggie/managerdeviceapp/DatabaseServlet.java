@@ -185,11 +185,11 @@ public class DatabaseServlet extends HttpServlet {
                     Map<String, Object> dataMap;
                     for (ListIterator<Map<String, Object>> li = dataList.listIterator(); li.hasNext(); ) {
                         dataMap = li.next();
-                        emitter.emit(Arrays.asList(dataMap.get("id"), dataMap.get("pin")), null);
+                        emitter.emit(Arrays.asList(dataMap.get("id"), dataMap.get("pin")), dataMap.get("name"));
                     }
                 }
             }
-        }, "6");
+        }, "7");
 
         outlet_database.getView("ddoc/deviceview").setMap(new Mapper() {
             @Override

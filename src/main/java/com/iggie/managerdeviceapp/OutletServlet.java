@@ -52,13 +52,10 @@ public class OutletServlet extends HttpServlet
         PrintWriter writer = response.getWriter();
         doJSON(writer, request, response);
         writer.flush();
-
     }
-
 
     protected void doJSON (PrintWriter writer, HttpServletRequest request,
                            HttpServletResponse response) throws IOException {
-
 
         Map<String,String[]> parameterMap = (Map<String, String[]>) request.getParameterMap();
 
@@ -73,8 +70,8 @@ public class OutletServlet extends HttpServlet
                 break;
             }
             case "VALIDATECREDS": {
-                String staffId = parameterMap != null ? parameterMap.get("staffId")[0] : "" ;
-                String staffPin = parameterMap != null ? parameterMap.get("staffPin")[0] : "" ;
+                String staffId =  myGetFirstValue(parameterMap, "staffId", "");  //parameterMap != null ? parameterMap.get("staffId")[0] : "" ;
+                String staffPin = myGetFirstValue(parameterMap, "staffPin", "");  //parameterMap != null ? parameterMap.get("staffPin")[0] : "" ;
 
                 validateCredsResponse(writer, staffId, staffPin);
                 break;
@@ -92,9 +89,8 @@ public class OutletServlet extends HttpServlet
                 break;
             }
             case "GETPENDINGORDERBYTABLE": {
-                //String order_id = parameterMap != null ? parameterMap.get("order_id")[0] : "" ;
-                String staffId = parameterMap != null ? parameterMap.get("staffId")[0] : "" ;
-                String tableNumber = parameterMap != null ? parameterMap.get("tableNumber")[0] : "" ;
+                String staffId = myGetFirstValue(parameterMap, "staffId", "");
+                String tableNumber = myGetFirstValue(parameterMap, "tableNumber", ""); ;
                 getPendingOrderByTableResponse(writer, staffId, tableNumber);
                 break;
             }
@@ -103,35 +99,41 @@ public class OutletServlet extends HttpServlet
                 break;
             }
             case "GETORDERBYID": {
-                String id = parameterMap != null ? parameterMap.get("id")[0] : "" ;
+                String id = myGetFirstValue(parameterMap, "id", "");
                 getOrderByIdResponse(writer, id);
                 break;
             }
             case "CONFIRMORDERPART": {
-                String id = parameterMap != null ? parameterMap.get("id")[0] : "" ;
+                String id = myGetFirstValue(parameterMap, "id", "");
                 updateOrderStatusResponse(writer, id, "confirm", "0");
                 break;
             }
             case "ORDERPARTDELIVERED": {
-                String id = parameterMap != null ? parameterMap.get("id")[0] : "" ;
+                String id = myGetFirstValue(parameterMap, "id", "");
                 updateOrderStatusResponse(writer, id, "delivered", "0");
                 break;
             }
             case "ORDERPAID": {
-                String order_id = parameterMap != null ? parameterMap.get("order_id")[0] : "" ;
-                float amount = Float.parseFloat(parameterMap != null ? parameterMap.get("amount")[0] : "0") ;
+                String order_id = myGetFirstValue(parameterMap, "order_id", "");
+                float amount = Float.parseFloat(myGetFirstValue(parameterMap, "amount", "0"));
                 orderPaidResponse(writer, order_id, amount);
                 break;
             }
         }
-
     }
 
-
+    private String myGetFirstValue(Map<String, String[]> myMap, String key, String defaultValue) {
+        String retValue = defaultValue;
+        String [] myArray = myMap.get(key);
+        if (myMap != null && myArray != null) {
+            retValue = myArray[0];
+        }
+        return retValue;
+    }
 
     private void validateCredsResponse(PrintWriter out, String staffId, String staffPin) throws IOException {
-        Map<String, String> replyMap = new HashMap<>();
-        replyMap.put("valid", "0");
+        Map<String, Object> replyMap = new HashMap();
+        Map<String, Object> dataMap = new HashMap();
 
         ArrayList keyArray = new ArrayList();
         keyArray.add(Arrays.asList(staffId, staffPin));
@@ -141,19 +143,27 @@ public class OutletServlet extends HttpServlet
         QueryEnumerator result = null;
         try {
             result = query.run();
+
+            if (result.hasNext()) {
+                dataMap.put("name", result.next().getValue());
+                replyMap.put("success", "1");
+                replyMap.put("value", dataMap);
+            } else {
+                replyMap.put("success", "0");
+                replyMap.put("message", "Creds do not match");
+            }
         } catch (CouchbaseLiteException e) {
             Log.e(TAG, "Error running query", e);
-        }
-
-        if (result.hasNext()) {
-            Log.i(TAG, "document found = " + result.next().getKey());
-                replyMap.put("valid", "1");
+            replyMap.put("error", "1");
+            replyMap.put("message", "Internal error while executing validate creds query. See error log for more info");
         }
 
         out.println(new ObjectMapper().writeValueAsString(replyMap));
     }
 
     private void getTablesResponse(PrintWriter out) throws IOException {
+        Map<String, Object> replyMap = new HashMap();
+        Map<String, Object> dataMap = new HashMap();
 
         Query query = outlet_database.getView("ddoc/tableview").createQuery();
         //query.setStartKey(Arrays.asList(outletId));
@@ -163,19 +173,27 @@ public class OutletServlet extends HttpServlet
             result = query.run();
         } catch (CouchbaseLiteException e) {
             Log.e(TAG, "Error running query", e);
+            replyMap.put("error", "1");
+            replyMap.put("message", "Internal error while executing tables query. See error log for more info");
         }
 
         if (result.hasNext()) {
-            //Map<String, Object> resultMap = (Map) result.next().getValue();
-            Document doc = result.next().getDocument();
-            ObjectMapper mapper = new ObjectMapper();
-            out.println(mapper.writeValueAsString(doc.getProperty("data")));
+            dataMap.put("data", result.next().getDocument().getProperty("data"));
+            replyMap.put("success", "1");
+            replyMap.put("value", dataMap);
+        } else {
+            replyMap.put("success", "0");
+            replyMap.put("message", "No tables document");
         }
 
+        ObjectMapper mapper = new ObjectMapper();
+        out.println(mapper.writeValueAsString(replyMap));
     }
 
 
     private void getMenuResponse(PrintWriter out) throws IOException {
+        Map<String, Object> replyMap = new HashMap();
+        Map<String, Object> dataMap = new HashMap();
 
         Query query = outlet_database.getView("ddoc/menuview").createQuery();
         QueryEnumerator result = null;
@@ -183,6 +201,8 @@ public class OutletServlet extends HttpServlet
             result = query.run();
         } catch (CouchbaseLiteException e) {
             Log.e(TAG, "Error running query", e);
+            replyMap.put("error", "1");
+            replyMap.put("message", "Internal error while executing Menu query. See error log for more info");
         }
 
         ArrayList resultMenu = new ArrayList();
@@ -193,8 +213,17 @@ public class OutletServlet extends HttpServlet
             resultMenu.add(doc.getProperties());
         }
 
+        if (!resultMenu.isEmpty()) {
+            dataMap.put("data", resultMenu);
+            replyMap.put("success", "1");
+            replyMap.put("value", dataMap);
+        } else {
+            replyMap.put("success", "0");
+            replyMap.put("message", "No Menu document");
+        }
+
         ObjectMapper mapper = new ObjectMapper();
-        out.println( mapper.writeValueAsString(resultMenu));
+        out.println(mapper.writeValueAsString(replyMap));
     }
 
 
@@ -224,11 +253,11 @@ public class OutletServlet extends HttpServlet
                     return false;
                 }
 
-
                 String orderpart_id = doc.getId();
                 Map<String, Object> order = (Map) orderMap.get("order");
                 String tableNumber = (String) order.get("tableNumber");
                 String order_id = (String) order.get("order_id");
+
                 Map<String, Object> statusMap = new HashMap();
                 statusMap.put("type", "orderpartstatus");
                 statusMap.put("updated_on", new java.util.Date().getTime());
@@ -446,38 +475,16 @@ public class OutletServlet extends HttpServlet
 
     private void testMethod(PrintWriter out, String cmd) throws IOException {
 
-        //Get get = Http.get("http://172.16.67.138:4984/outlet-sync");
-        //"Authorization","Basic dXNlcm5hbWU6cGFzc3dvcmQ="
-        //Get get = Http.get(cmd);
-        //get.basic("username", "password");
-        //out.println(get.toString());
-
-/*        org.javalite.http.Get get = org.javalite.http.Http.get("http://192.168.56.101:5984/outletdb1").basic("username", "password");
-
-        out.println(get.text());
-        out.println(get.headers());
-        out.println(get.responseCode());*/
-
         try {
 
-            //CredentialsProvider cp =  new BasicCredentialsProvider();
-            //AuthScope as = new AuthScope("192.168.56.101", 5984);
             UsernamePasswordCredentials creds = new UsernamePasswordCredentials("username", "password");
-            //cp.setCredentials(as, creds);
 
-            // create HTTP Client
             DefaultHttpClient httpClient = new DefaultHttpClient();
-            //httpClient.setCredentialsProvider(cp);
 
-
-            // Create new getRequest with below mentioned URL
             HttpGet getRequest = new HttpGet(cmd);
 
-            //getRequest.addHeader("Authorization","Basic dXNlcm5hbWU6cGFzc3dvcmQ=");
-            // Add additional header to getRequest which accepts application/json data
             getRequest.addHeader("accept", "application/json");
             getRequest.addHeader(BasicScheme.authenticate(creds, "US-ASCII", false));
-            // Execute your request and catch response
             HttpResponse response = httpClient.execute(getRequest);
 
             // Check for HTTP response code: 200 = success
@@ -485,15 +492,13 @@ public class OutletServlet extends HttpServlet
                 throw new RuntimeException("Failed : HTTP error code : " + response.getStatusLine().getStatusCode());
             }
 
-            // Get-Capture Complete application/xml body response
             BufferedReader br = new BufferedReader(new InputStreamReader((response.getEntity().getContent())));
             String output;
-            out.println("============Output:============");
 
-            // Simply iterate through XML response and show on console.
             while ((output = br.readLine()) != null) {
                 out.println(output);
             }
+            br.close();
 
         } catch (ClientProtocolException e) {
             e.printStackTrace();
@@ -502,9 +507,5 @@ public class OutletServlet extends HttpServlet
             e.printStackTrace();
         }
     }
-
-        
-
-
 
 }
